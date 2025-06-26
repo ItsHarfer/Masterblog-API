@@ -1,8 +1,16 @@
 from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
+
+limiter = Limiter(
+    get_remote_address,  # basiert auf IP-Adresse
+    app=app,  # deine Flask-App
+    default_limits=["100 per hour"],  # globales Limit (optional)
+)
 
 POSTS = [
     {"id": 1, "title": "First post", "content": "This is the first post."},
@@ -10,20 +18,12 @@ POSTS = [
 ]
 
 
-def validate_post_form_data():
+def parse_post_data():
     """
-    Validates input JSON data from a POST request to extract and process the `title`
-    and `content` fields. Ensures that both fields are properly trimmed and checks
-    if they are provided and non-empty. Returns a tuple of `title` and `content`.
+    Extract and trim the 'title' and 'content' fields from a JSON request body.
 
-    :raises:
-        Does not raise any exceptions itself but depends on caller handling any
-        possible errors (e.g., issues parsing JSON from `request.get_json()`).
-
-    :returns:
-        A tuple containing the extracted and trimmed `title` and `content` if both
-        are valid. If either the `title` or `content` is missing or empty, it
-        returns a tuple with both elements as `None`.
+    :return: Tuple of (title, content), each either a trimmed string or None
+    :raises: None
     """
     data = request.get_json() or {}
 
@@ -38,19 +38,12 @@ def validate_post_form_data():
 
 def get_field_error_response(title, content):
     """
-    Generates an HTTP response for field validation errors based on the provided
-    title and content. The response contains an error message specifying the
-    missing or invalid fields and assigns a 400 HTTP status code. This function
-    is primarily used to ensure proper error communication when required input
-    fields are either missing or empty.
+    Generate and return an error response for missing or empty fields.
 
-    :param title: The title field to be validated.
-    :type title: str
-    :param content: The content field to be validated.
-    :type content: str
-    :return: A tuple containing a JSON response with an error message and
-        the HTTP status code 400.
-    :rtype: Tuple[flask.Response, int]
+    :param title: The title field to validate
+    :param content: The content field to validate
+    :return: Aborts with a 400 response including a descriptive error message
+    :raises: 400: If either or both fields are missing or empty.
     """
     if not title and not content:
         abort(400, description="Title and content are required")
@@ -58,6 +51,35 @@ def get_field_error_response(title, content):
         abort(400, description="Title is required")
     elif not content:
         abort(400, description="Content is required")
+
+
+def get_post_by_id(post_id):
+    """
+    Find and return the post by ID.
+
+    :param post_id: The ID of the post to find
+    :return: The post object if found.
+    :raises: 404: If no post with the given ID exists.
+    """
+    post = next((post for post in POSTS if post["id"] == post_id), None)
+    if not post:
+        return abort(404, description=f"Post with id {post_id} not found.")
+    return post
+
+
+def validate_post_id(post_id):
+    """
+    Validate that the post ID is an integer.
+
+    :param post_id: The post ID to validate
+    :return: The integer ID if valid.
+    :raises: 400: If post_id is not an integer.
+    """
+    try:
+        post_id = int(post_id)
+    except ValueError:
+        abort(400, description="Post ID must be an integer")
+    return post_id
 
 
 @app.errorhandler(400)
@@ -75,22 +97,24 @@ def bad_request(error):
     )
 
 
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify(error="Rate limit exceeded", message=str(e.description)), 429
+
+
 @app.route("/api/posts", methods=["GET", "POST"])
+@limiter.limit("10/minute")
 def handle_posts():
     """
-    Handles GET and POST requests to manage blog posts.
+    Handle GET and POST requests to retrieve or create blog posts.
 
-    - GET: Returns a list of all stored posts.
-    - POST: Validates title and content fields, generates a unique integer ID,
-            stores the new post in memory, and returns it in the response.
-
-    Returns:
-        - 200 OK with post list (GET)
-        - 201 Created with new post object (POST)
-        - 400 Bad Request with descriptive error if fields are missing or invalid
+    :return: JSON list of posts (GET) or newly created post with ID (POST)
+    :raises:
+        400: If title or content is missing in a POST request.
+        429: If rate limit exceeded.
     """
     if request.method == "POST":
-        title, content = validate_post_form_data()
+        title, content = parse_post_data()
         if title and content:
             new_id = max((post["id"] for post in POSTS), default=0) + 1
             new_post = {"id": new_id, "title": title, "content": content}
@@ -106,43 +130,54 @@ def handle_posts():
 
 
 @app.route("/api/posts/<post_id>", methods=["DELETE"])
+@limiter.limit("10/minute")
 def delete_post(post_id: str):
     """
-    Handles DELETE requests to delete a blog post by its ID.
+    Delete a blog post by ID.
 
-    - Converts the provided `post_id` to an integer.
-    - Validates that the ID is present and an integer.
-    - Searches for a matching post in the in-memory list.
-    - If found, deletes the post and returns a confirmation message.
-    - If not found, returns a 404 Not Found error.
-    - If ID is invalid or missing, returns a 400 Bad Request error.
-
-    Parameters:
-        post_id (str): The ID of the post to delete, passed as a URL parameter.
-
-    Returns:
-        - 200 OK with deletion confirmation if the post was found and removed.
-        - 400 Bad Request if `post_id` is not an integer.
-        - 404 Not Found if no post with the given ID exists.
-    Edge cases:
-        - post_id is always provided by Flask when the route is matched.
-          If it were missing, the route itself would not be invoked.
+    :param post_id: The ID of the post to delete
+    :return: JSON message on success, aborts with 400 or 404 on failure
+    :raises:
+        400: If post_id is invalid.
+        404: If no post with the given ID exists.
+        429: If rate limit exceeded.
     """
-    try:
-        post_id = int(post_id)
-    except ValueError:
-        abort(400, description="Post ID must be an integer")
+    post_id_int = validate_post_id(post_id)
+    post = get_post_by_id(post_id_int)
+    POSTS.remove(post)
+    return (
+        jsonify({"message": f"Post {post_id_int} has been deleted successfully."}),
+        200,
+    )
 
-    # Find the post by ID
-    post = next((p for p in POSTS if p["id"] == post_id), None)
-    if post:
-        POSTS.remove(post)
-        return (
-            jsonify({"message": f"Post {post_id} has been deleted successfully."}),
-            200,
-        )
 
-    return abort(404, description=f"Post with id {post_id} not found.")
+@app.route("/api/posts/<post_id>", methods=["PUT"])
+@limiter.limit("10/minute")
+def update_post(post_id: str):
+    """
+    Update a blog post by ID.
+
+    :param post_id: The ID of the post to update
+    :return: JSON message with updated post or error if not found/invalid
+    :raises:
+        400: If post_id is invalid or if neither field is provided.
+        404: If no post with the given ID exists.
+        429: If rate limit exceeded.
+    """
+    post_id_int = validate_post_id(post_id)
+    title, content = parse_post_data()
+
+    if not title and not content:
+        abort(400, description="At least one field is required")
+
+    post = get_post_by_id(post_id_int)
+
+    if title:
+        post["title"] = title
+    if content:
+        post["content"] = content
+
+    return jsonify({"message": "Post updated successfully", "post": post})
 
 
 if __name__ == "__main__":
