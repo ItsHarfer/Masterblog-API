@@ -4,36 +4,84 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
-CORS(app)  # This will enable CORS for all routes
+CORS(app)
 
 limiter = Limiter(
-    get_remote_address,  # basiert auf IP-Adresse
-    app=app,  # deine Flask-App
-    default_limits=["100 per hour"],  # globales Limit (optional)
+    get_remote_address,
+    app=app,
+    default_limits=["100 per hour"],
 )
 
 POSTS = [
-    {"id": 1, "title": "First post", "content": "This is the first post."},
-    {"id": 2, "title": "Second post", "content": "This is the second post."},
+    {
+        "id": 1,
+        "title": "Getting Started with Flask",
+        "content": "This post walks you through building your first REST API using Flask and Python.",
+    },
+    {
+        "id": 2,
+        "title": "Why Python Is Great for Backend Development",
+        "content": "Python's simplicity and powerful libraries make it ideal for building scalable backend systems.",
+    },
+    {
+        "id": 3,
+        "title": "Understanding RESTful APIs",
+        "content": "REST is a design pattern for APIs that relies on standard HTTP methods. Here's how it works.",
+    },
+    {
+        "id": 4,
+        "title": "Implementing Rate Limiting in Flask",
+        "content": "Learn how to use Flask-Limiter to protect your API from abuse by limiting requests.",
+    },
+    {
+        "id": 5,
+        "title": "How to Handle CORS in Flask",
+        "content": "Cross-Origin Resource Sharing (CORS) can be tricky. Here's how to set it up properly in Flask.",
+    },
 ]
 
 
-def parse_post_data():
+def parse_post_field_input():
     """
-    Extract and trim the 'title' and 'content' fields from a JSON request body.
+    Extract and trim 'title' and 'content' fields from a JSON request body or query parameters.
+
+    Priority:
+    - JSON body fields ('title', 'content') are checked first.
+    - If not present, fallback to query parameters.
 
     :return: Tuple of (title, content), each either a trimmed string or None
     :raises: None
     """
-    data = request.get_json() or {}
 
-    raw_title = data.get("title")
-    raw_content = data.get("content")
+    # Safely attempt to parse JSON body without raising an error on failure
+    json_data = request.get_json(silent=True) or {}
+    args = request.args
+
+    raw_title = json_data.get("title") or args.get("title")
+    raw_content = json_data.get("content") or args.get("content")
 
     title = raw_title.strip() if isinstance(raw_title, str) else None
     content = raw_content.strip() if isinstance(raw_content, str) else None
 
     return title, content
+
+
+def parse_sort_query_input():
+    """
+    Extract and trim 'sort' and 'direction' query parameters.
+
+    :return: Tuple of (sort, direction), each either a trimmed string or None
+    :raises: None
+    """
+    args = request.args
+
+    raw_sort = args.get("sort")
+    raw_direction = args.get("direction")
+
+    sort = raw_sort.strip() if isinstance(raw_sort, str) else None
+    direction = raw_direction.strip() if isinstance(raw_direction, str) else None
+
+    return sort, direction
 
 
 def get_field_error_response(title, content):
@@ -84,6 +132,12 @@ def validate_post_id(post_id):
 
 @app.errorhandler(400)
 def bad_request(error):
+    """
+    Handle 400 Bad Request errors and return a JSON response.
+
+    :param error: The error object raised by Flask
+    :return: A JSON response with a message and error details, HTTP 400 status code
+    """
     return (
         jsonify(
             {
@@ -99,6 +153,12 @@ def bad_request(error):
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
+    """
+    Handle 429 Too Many Requests errors and return a JSON response.
+
+    :param e: The rate limit exception raised by Flask-Limiter
+    :return: A JSON response with an error message and HTTP 429 status code
+    """
     return jsonify(error="Rate limit exceeded", message=str(e.description)), 429
 
 
@@ -113,8 +173,9 @@ def handle_posts():
         400: If title or content is missing in a POST request.
         429: If rate limit exceeded.
     """
+
     if request.method == "POST":
-        title, content = parse_post_data()
+        title, content = parse_post_field_input()
         if title and content:
             new_id = max((post["id"] for post in POSTS), default=0) + 1
             new_post = {"id": new_id, "title": title, "content": content}
@@ -126,6 +187,15 @@ def handle_posts():
         return get_field_error_response(title, content)
 
     # GET request
+    sort, direction = parse_sort_query_input()
+
+    if sort:
+        if direction == "asc":
+            POSTS.sort(key=lambda post: post[sort])
+
+        elif direction == "desc":
+            POSTS.sort(key=lambda post: post[sort], reverse=True)
+
     return jsonify(POSTS)
 
 
@@ -165,7 +235,7 @@ def update_post(post_id: str):
         429: If rate limit exceeded.
     """
     post_id_int = validate_post_id(post_id)
-    title, content = parse_post_data()
+    title, content = parse_post_field_input()
 
     if not title and not content:
         abort(400, description="At least one field is required")
@@ -178,6 +248,33 @@ def update_post(post_id: str):
         post["content"] = content
 
     return jsonify({"message": "Post updated successfully", "post": post})
+
+
+@app.route("/api/posts/search")
+@limiter.limit("20/minute")
+def search_post():
+    """
+    Search for blog posts by title or content.
+
+    :return: JSON list of posts that match the given search terms.
+    :raises:
+        None explicitly, but may return empty list if no matches are found.
+        Ensures no TypeError occurs by validating inputs before filtering.
+        429: If rate limit is exceeded.
+    """
+    title, content = parse_post_field_input()
+
+    filtered_posts = [
+        post
+        for post in POSTS
+        if (title and title in post["title"])
+        or (content and content in post["content"])
+    ]
+
+    if not filtered_posts:
+        return jsonify([])
+
+    return jsonify(filtered_posts)
 
 
 if __name__ == "__main__":
