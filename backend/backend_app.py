@@ -155,7 +155,7 @@ def delete_post(post_id: str):
 @limiter.limit("10/minute")
 def update_post(post_id: str):
     """
-    Update a blog post by ID.
+    Update a blog post by ID
 
     :param post_id: The ID of the post to update
     :return: JSON message with updated post or error if not found/invalid
