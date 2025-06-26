@@ -190,11 +190,16 @@ def handle_posts():
     sort, direction = parse_sort_query_input()
 
     if sort:
-        if direction == "asc":
-            POSTS.sort(key=lambda post: post[sort])
+        if sort not in ("title", "content"):
+            abort(400, description=f"Invalid sort field: {sort}")
 
-        elif direction == "desc":
-            POSTS.sort(key=lambda post: post[sort], reverse=True)
+        if direction not in ("asc", "desc"):
+            abort(400, description=f"Invalid sort direction: {direction}")
+
+        try:
+            POSTS.sort(key=lambda post: post[sort], reverse=(direction == "desc"))
+        except KeyError:
+            abort(400, description=f"Sort key '{sort}' not found in one or more posts.")
 
     return jsonify(POSTS)
 
