@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 
 from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
@@ -38,14 +39,15 @@ logging.basicConfig(
 )
 
 
-def fetch_data_from_json():
+def fetch_data_from_json() -> list:
     """
     Fetches and returns data from a JSON file.
 
     :return: The content of the JSON file as a Python data structure.
     :rtype: dict or list
     """
-    with open("data/posts.json", "r") as f:
+    path = Path(__file__).parent / "data" / "posts.json"
+    with open(path, "r") as f:
         return json.load(f)
 
 
@@ -55,8 +57,9 @@ def save_data_to_json(data):
 
     :param data: List of data to save.
     """
-    with open("data/posts.json", "w") as f:
-        json.dump(data, f)
+    path = Path(__file__).parent / "data" / "posts.json"
+    with open(path, "w") as f:
+        json.dump(data, f, indent=4)
 
 
 def parse_post_field_input():
