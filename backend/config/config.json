@@ -1,0 +1,9 @@
+{
+  "swagger": {
+    "url": "/api/docs",
+    "api_url": "/static/masterblog.json",
+    "config": {
+      "app_name": "Masterblog API"
+    }
+  }
+}

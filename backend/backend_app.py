@@ -1,44 +1,62 @@
+import json
+import logging
+
 from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_swagger_ui import get_swaggerui_blueprint
+
+from config.loader import load_config
 
 app = Flask(__name__)
 CORS(app)
 
+# Loading constants
+config = load_config()
+
+# Configure SwaggerUI
+swagger_cfg = config["swagger"]
+swagger_ui_blueprint = get_swaggerui_blueprint(
+    swagger_cfg["url"], swagger_cfg["api_url"], config=swagger_cfg["config"]
+)
+app.register_blueprint(swagger_ui_blueprint, url_prefix=swagger_cfg["url"])
+
+# Configure Rate limiter
 limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["100 per hour"],
 )
 
-POSTS = [
-    {
-        "id": 1,
-        "title": "Getting Started with Flask",
-        "content": "This post walks you through building your first REST API using Flask and Python.",
-    },
-    {
-        "id": 2,
-        "title": "Why Python Is Great for Backend Development",
-        "content": "Python's simplicity and powerful libraries make it ideal for building scalable backend systems.",
-    },
-    {
-        "id": 3,
-        "title": "Understanding RESTful APIs",
-        "content": "REST is a design pattern for APIs that relies on standard HTTP methods. Here's how it works.",
-    },
-    {
-        "id": 4,
-        "title": "Implementing Rate Limiting in Flask",
-        "content": "Learn how to use Flask-Limiter to protect your API from abuse by limiting requests.",
-    },
-    {
-        "id": 5,
-        "title": "How to Handle CORS in Flask",
-        "content": "Cross-Origin Resource Sharing (CORS) can be tricky. Here's how to set it up properly in Flask.",
-    },
-]
+# Configure logging
+logging.basicConfig(
+    filename="app.log",
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+
+def fetch_data_from_json():
+    """
+    Fetches and returns data from a JSON file.
+
+    :return: The content of the JSON file as a Python data structure.
+    :rtype: dict or list
+    """
+    with open("data/posts.json", "r") as f:
+        return json.load(f)
+
+
+def save_data_to_json(data):
+    """
+    Save the list of data to the JSON file.
+
+    :param data: List of data to save.
+    """
+    with open("data/posts.json", "w") as f:
+        json.dump(data, f)
 
 
 def parse_post_field_input():
@@ -109,7 +127,7 @@ def get_post_by_id(post_id):
     :return: The post object if found.
     :raises: 404: If no post with the given ID exists.
     """
-    post = next((post for post in POSTS if post["id"] == post_id), None)
+    post = next((post for post in posts if post["id"] == post_id), None)
     if not post:
         return abort(404, description=f"Post with id {post_id} not found.")
     return post
@@ -177,9 +195,10 @@ def handle_posts():
     if request.method == "POST":
         title, content = parse_post_field_input()
         if title and content:
-            new_id = max((post["id"] for post in POSTS), default=0) + 1
+            new_id = max((post["id"] for post in posts), default=0) + 1
             new_post = {"id": new_id, "title": title, "content": content}
-            POSTS.append(new_post)
+            posts.append(new_post)
+            save_data_to_json(posts)
             return (
                 jsonify({"message": "Post created successfully", "post": new_post}),
                 201,
@@ -197,11 +216,11 @@ def handle_posts():
             abort(400, description=f"Invalid sort direction: {direction}")
 
         try:
-            POSTS.sort(key=lambda post: post[sort], reverse=(direction == "desc"))
+            posts.sort(key=lambda post: post[sort], reverse=(direction == "desc"))
         except KeyError:
             abort(400, description=f"Sort key '{sort}' not found in one or more posts.")
 
-    return jsonify(POSTS)
+    return jsonify(posts), 200
 
 
 @app.route("/api/posts/<post_id>", methods=["DELETE"])
@@ -219,7 +238,8 @@ def delete_post(post_id: str):
     """
     post_id_int = validate_post_id(post_id)
     post = get_post_by_id(post_id_int)
-    POSTS.remove(post)
+    posts.remove(post)
+    save_data_to_json(posts)
     return (
         jsonify({"message": f"Post {post_id_int} has been deleted successfully."}),
         200,
@@ -252,7 +272,7 @@ def update_post(post_id: str):
     if content:
         post["content"] = content
 
-    return jsonify({"message": "Post updated successfully", "post": post})
+    return jsonify({"message": "Post updated successfully", "post": post}), 200
 
 
 @app.route("/api/posts/search")
@@ -271,7 +291,7 @@ def search_post():
 
     filtered_posts = [
         post
-        for post in POSTS
+        for post in posts
         if (title and title in post["title"])
         or (content and content in post["content"])
     ]
@@ -279,8 +299,11 @@ def search_post():
     if not filtered_posts:
         return jsonify([])
 
-    return jsonify(filtered_posts)
+    save_data_to_json(filtered_posts)
+
+    return jsonify(filtered_posts), 200
 
 
 if __name__ == "__main__":
+    posts = fetch_data_from_json()
     app.run(host="0.0.0.0", port=5002, debug=True)
