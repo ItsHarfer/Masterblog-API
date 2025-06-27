@@ -47,11 +47,24 @@ def fetch_data_from_json() -> list:
     Fetches and returns data from a JSON file.
 
     :return: The content of the JSON file as a Python data structure.
-    :rtype: dict or list
+    :rtype: list
     """
     path = Path(__file__).parent / "data" / "posts.json"
-    with open(path, "r") as f:
-        return json.load(f)
+
+    if not path.exists():
+        logging.warning(f"Data file does not exist at {path}. Returning empty list.")
+        return []
+
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, ValueError, UnicodeDecodeError) as e:
+        logging.error(f"Failed to decode JSON from {path}: {e}")
+    except (OSError, IOError) as e:
+        logging.error(f"File access error while reading {path}: {e}")
+    except Exception as e:
+        logging.exception(f"Unexpected error while reading JSON from {path}: {e}")
+    return []
 
 
 def save_data_to_json(data):
@@ -61,8 +74,20 @@ def save_data_to_json(data):
     :param data: List of data to save.
     """
     path = Path(__file__).parent / "data" / "posts.json"
-    with open(path, "w") as f:
-        json.dump(data, f, indent=4)
+
+    if not path.exists():
+        logging.warning(f"Data file does not exist at {path}. Returning empty list.")
+        return []
+
+    try:
+        with open(path, "w") as f:
+            json.dump(data, f, indent=4)
+    except (OSError, IOError) as e:
+        logging.error(f"Failed to write JSON to {path}: {e}")
+    except TypeError as e:
+        logging.error(f"Data serialization failed while writing to {path}: {e}")
+    except Exception as e:
+        logging.exception(f"Unexpected error while writing JSON to {path}: {e}")
 
 
 def parse_post_field_input():
