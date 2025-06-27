@@ -1,8 +1,6 @@
 import json
 import logging
-
-from config.loader import load_config, apply_runtime_config
-
+from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, jsonify, request, abort
@@ -11,8 +9,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_swagger_ui import get_swaggerui_blueprint
 
-# In this case: Suppress in-memory warning from flask_limiter in dev
-apply_runtime_config()
+from config.loader import load_config
+
 app = Flask(__name__)
 CORS(app)
 
@@ -92,13 +90,13 @@ def save_data_to_json(data):
 
 def parse_post_field_input():
     """
-    Extract and trim 'title' and 'content' fields from a JSON request body or query parameters.
+    Extract and trim 'title', 'content', 'author', and 'date' fields from a JSON request body or query parameters.
 
     Priority:
-    - JSON body fields ('title', 'content') are checked first.
+    - JSON body fields ('title', 'content', 'author', 'date') are checked first.
     - If not present, fallback to query parameters.
 
-    :return: Tuple of (title, content), each either a trimmed string or None
+    :return: Tuple of (title, content, author, date), each either a trimmed string or None
     :raises: None
     """
 
@@ -108,11 +106,15 @@ def parse_post_field_input():
 
     raw_title = json_data.get("title") or args.get("title")
     raw_content = json_data.get("content") or args.get("content")
+    raw_author = json_data.get("author") or args.get("author")
+    raw_date = json_data.get("date") or args.get("date")
 
     title = raw_title.strip() if isinstance(raw_title, str) else None
     content = raw_content.strip() if isinstance(raw_content, str) else None
+    author = raw_author.strip() if isinstance(raw_author, str) else None
+    date = raw_date.strip() if isinstance(raw_date, str) else None
 
-    return title, content
+    return title, content, author, date
 
 
 def parse_sort_query_input():
@@ -133,21 +135,29 @@ def parse_sort_query_input():
     return sort, direction
 
 
-def get_field_error_response(title, content):
+def get_field_error_response(title, content, author, date):
     """
     Generate and return an error response for missing or empty fields.
 
+    :param date: The date field to validate
+    :param author: The author field to validate
     :param title: The title field to validate
     :param content: The content field to validate
     :return: Aborts with a 400 response including a descriptive error message
     :raises: 400: If either or both fields are missing or empty.
     """
-    if not title and not content:
-        abort(400, description="Title and content are required")
-    elif not title:
-        abort(400, description="Title is required")
-    elif not content:
-        abort(400, description="Content is required")
+    missing_fields = []
+    if not title:
+        missing_fields.append("title")
+    if not content:
+        missing_fields.append("content")
+    if not author:
+        missing_fields.append("author")
+    if not date:
+        missing_fields.append("date")
+
+    if missing_fields:
+        abort(400, description=f"Missing required fields: {', '.join(missing_fields)}")
 
 
 def get_post_by_id(post_id):
@@ -224,32 +234,54 @@ def handle_posts():
     """
 
     if request.method == "POST":
-        title, content = parse_post_field_input()
-        if title and content:
+        title, content, author, date = parse_post_field_input()
+        if title and content and author and date:
             new_id = max((post["id"] for post in posts), default=0) + 1
-            new_post = {"id": new_id, "title": title, "content": content}
+            new_post = {
+                "id": new_id,
+                "title": title,
+                "content": content,
+                "author": author,
+                "date": date,
+            }
             posts.append(new_post)
             save_data_to_json(posts)
             return (
                 jsonify({"message": "Post created successfully", "post": new_post}),
                 201,
             )
-        return get_field_error_response(title, content)
+        return get_field_error_response(title, content, author, date)
 
     # GET request
     sort, direction = parse_sort_query_input()
 
     if sort:
-        if sort not in ("title", "content"):
+        if sort not in ("title", "content", "author", "date"):
             abort(400, description=f"Invalid sort field: {sort}")
 
         if direction not in ("asc", "desc"):
             abort(400, description=f"Invalid sort direction: {direction}")
 
         try:
-            posts.sort(key=lambda post: post[sort], reverse=(direction == "desc"))
-        except KeyError:
-            abort(400, description=f"Sort key '{sort}' not found in one or more posts.")
+            reverse = direction == "desc"
+
+            if sort == "date":
+                posts.sort(
+                    key=lambda post: datetime.strptime(
+                        # Default date if a field is missing or None
+                        post.get("date", "1970-01-01"),
+                        "%Y-%m-%d",
+                    ),
+                    reverse=reverse,
+                )
+            else:
+                posts.sort(
+                    key=lambda post: (str(post.get(sort) or "")).lower(),
+                    reverse=reverse,
+                )
+
+        except (KeyError, ValueError, TypeError) as e:
+            abort(400, description=f"Error during sorting: {str(e)}")
 
     return jsonify(posts), 200
 
@@ -291,9 +323,9 @@ def update_post(post_id: str):
         429: If rate limit exceeded.
     """
     post_id_int = validate_post_id(post_id)
-    title, content = parse_post_field_input()
+    title, content, author, date = parse_post_field_input()
 
-    if not title and not content:
+    if not title and not content and not author and not date:
         abort(400, description="At least one field is required")
 
     post = get_post_by_id(post_id_int)
@@ -302,6 +334,10 @@ def update_post(post_id: str):
         post["title"] = title
     if content:
         post["content"] = content
+    if author:
+        post["author"] = author
+    if date:
+        post["date"] = date
 
     return jsonify({"message": "Post updated successfully", "post": post}), 200
 
@@ -318,13 +354,15 @@ def search_post():
         Ensures no TypeError occurs by validating inputs before filtering.
         429: If rate limit is exceeded.
     """
-    title, content = parse_post_field_input()
+    title, content, author, date = parse_post_field_input()
 
     filtered_posts = [
         post
         for post in posts
         if (title and title in post["title"])
         or (content and content in post["content"])
+        or (author and author in post["author"])
+        or (date and date in post["date"])
     ]
 
     if not filtered_posts:
