@@ -9,10 +9,13 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_swagger_ui import get_swaggerui_blueprint
 
-from config.loader import load_config
+from config.loader import load_config, apply_runtime_config
 
 app = Flask(__name__)
 CORS(app)
+
+# For dev purposes deactivate limiter warnings
+apply_runtime_config()
 
 # Loading constants
 config = load_config()
