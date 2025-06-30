@@ -8,22 +8,75 @@
     <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>📚 Blog Posts</h1>
-        <div class="input-field">
-            <input type="text" id="api-base-url" placeholder="Enter API Base URL" value="http://127.0.0.1:5002/api">
-            <button onclick="loadPosts()">Load Posts</button>
-        </div>
-        <div class="input-field">
-            <label for="post-title">Title</label><input type="text" id="post-title" placeholder="Enter Post Title">
-            <label for="post-content">Content</label><input type="text" id="post-content" placeholder="Enter Post Content">
-            <button onclick="addPost()">Add Post</button>
-        </div>
-        <div id="post-container">
-            <!-- Blog posts will be inserted here by JavaScript -->
-        </div>
-    </div>
 
+    <div class="container">
+        <div class="section-header" style="margin-bottom: 40px;">
+            <h1>📚 Masterblog API</h1>
+            <p>A simple blog app built with Flask and React.</p>
+        </div>
+        <div id="app-content">
+            <div class="top-bar">
+                <div class="section-block">
+                    <div class="section-header">
+                        <h2>🔗 API Connection</h2>
+                        <p class="section-description">Enter your API base URL on the bottom of this card in the textarea. <br><br>Whether hosted locally or deployed remotely, the app will connect and fetch your blog posts reliably.</p>
+                    </div>
+                    <div class="input-field">
+                        <label for="api-base-url">URL:</label>
+                        <textarea id="api-base-url" placeholder="http://127.0.0.1:5002/api"></textarea>
+                        <button class="btn" onclick="loadPosts()">Load</button>
+                    </div>
+                </div>
+
+                <div class="section-block">
+                    <div class="section-header">
+                        <h2>🔍 Search & Sort</h2>
+                        <p class="section-description">Search blog posts by keyword and sort them by title, date, or author.</p>
+                    </div>
+                    <div class="input-row">
+                        <input type="text" id="search-term" placeholder="Search...">
+                        <label for="sort-field">Sort by:</label>
+                        <select id="sort-field" class="styled-select">
+                            <option value="date">Date</option>
+                            <option value="title">Title</option>
+                            <option value="author">Author</option>
+                            <option value="content">Content</option>
+                        </select>
+                        <label for="sort-direction">Direction:</label>
+                        <select id="sort-direction" class="styled-select">
+                            <option value="asc">↑ Asc</option>
+                            <option value="desc">↓ Desc</option>
+                        </select>
+                        <button class="btn" onclick="searchPosts()">Search</button>
+                    </div>
+                </div>
+
+                <div class="section-block">
+                    <div class="section-header">
+                        <h2>📝 Add Post</h2>
+                        <p class="section-description">Create a new blog post by providing a title and content.</p>
+                    </div>
+                    <div class="input-field">
+                        <input type="text" id="post-title" placeholder="Title">
+                        <input type="text" id="post-author" placeholder="Author">
+                        <textarea type="text" id="post-content" placeholder="Content"></textarea>
+                        <button class="btn" onclick="addPost()">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📚 Blog Posts</h2>
+                <div id="post-container"></div>
+            </div>
+        </div>
+        <div id="connection-warning" style="display: none; color: red; margin-top: 20px;">
+            ⚠️ Could not connect to the backend API.
+        </div>
+
+
+    </div>
+    <div id="toast" class="toast">Post successfully added!</div>
     <script src="static/main.js"></script>
 </body>
 </html>

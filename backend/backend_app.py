@@ -1,7 +1,39 @@
-import json
+"""
+backend_app.py
+
+Backend API module for the Masterblog API.
+
+This script defines the RESTful backend logic for managing blog posts in the Masterblog system.
+It supports creating, retrieving, updating, deleting, liking, and commenting on blog posts.
+Posts are stored as structured JSON data in a local file (`data/posts.json`).
+
+Features:
+- REST API for blog post lifecycle management (CRUD operations)
+- Support for liking and commenting on posts
+- Sorting and searching functionality
+- JSON-backed persistent data layer
+- Swagger UI for API documentation
+- Rate limiting using Flask-Limiter
+- Cross-origin request support via Flask-CORS
+
+Functions:
+- `fetch_data_from_json()` and `save_data_to_json()` handle file I/O
+- `get_post_by_id()` and `validate_post_id()` assist post access and validation
+- Route handlers cover /api/posts endpoints for managing blog data
+
+Required modules:
+- Flask: Web framework for route handling
+- Flask-Limiter: Rate-limiting functionality
+- Flask-CORS: CORS support for cross-origin requests
+- Flask-Swagger-UI: Documentation generation for the API
+- json, logging, pathlib, datetime: for I/O, logging, path, and date handling
+
+Author: Martin Haferanke
+Date: 2025-06-30
+"""
+
 import logging
 from datetime import datetime
-from pathlib import Path
 
 from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
@@ -9,184 +41,17 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_swagger_ui import get_swaggerui_blueprint
 
-from config.loader import load_config
+from config.loader import load_config, apply_runtime_config
 
-app = Flask(__name__)
-CORS(app)
+from utils.json_io import fetch_data_from_json, save_data_to_json
+from utils.parsers import parse_post_field_input, parse_sort_query_input
+from utils.validators import get_field_error_response, validate_post_id
+from utils.helpers import get_post_by_id
 
-# Loading constants
-config = load_config()
+# App Config
+from app_factory import create_app
 
-# Configure SwaggerUI
-swagger_cfg = config["swagger"]
-swagger_ui_blueprint = get_swaggerui_blueprint(
-    swagger_cfg["url"], swagger_cfg["api_url"], config=swagger_cfg["config"]
-)
-app.register_blueprint(swagger_ui_blueprint, url_prefix=swagger_cfg["url"])
-
-# Configure Rate limiter
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["100 per hour"],
-)
-
-# Configure logging
-logging.basicConfig(
-    filename="app.log",
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-
-
-def fetch_data_from_json() -> list:
-    """
-    Fetches and returns data from a JSON file.
-
-    :return: The content of the JSON file as a Python data structure.
-    :rtype: list
-    """
-    path = Path(__file__).parent / "data" / "posts.json"
-
-    if not path.exists():
-        logging.warning(f"Data file does not exist at {path}. Returning empty list.")
-        return []
-
-    try:
-        with open(path, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, ValueError, UnicodeDecodeError) as e:
-        logging.error(f"Failed to decode JSON from {path}: {e}")
-    except (OSError, IOError) as e:
-        logging.error(f"File access error while reading {path}: {e}")
-    except Exception as e:
-        logging.exception(f"Unexpected error while reading JSON from {path}: {e}")
-    return []
-
-
-def save_data_to_json(data):
-    """
-    Save the list of data to the JSON file.
-
-    :param data: List of data to save.
-    """
-    path = Path(__file__).parent / "data" / "posts.json"
-
-    if not path.exists():
-        logging.warning(f"Data file does not exist at {path}. Returning empty list.")
-        return []
-
-    try:
-        with open(path, "w") as f:
-            json.dump(data, f, indent=4)
-    except (OSError, IOError) as e:
-        logging.error(f"Failed to write JSON to {path}: {e}")
-    except TypeError as e:
-        logging.error(f"Data serialization failed while writing to {path}: {e}")
-    except Exception as e:
-        logging.exception(f"Unexpected error while writing JSON to {path}: {e}")
-
-
-def parse_post_field_input():
-    """
-    Extract and trim 'title', 'content', 'author', and 'date' fields from a JSON request body or query parameters.
-
-    Priority:
-    - JSON body fields ('title', 'content', 'author', 'date') are checked first.
-    - If not present, fallback to query parameters.
-
-    :return: Tuple of (title, content, author, date), each either a trimmed string or None
-    :raises: None
-    """
-
-    # Safely attempt to parse JSON body without raising an error on failure
-    json_data = request.get_json(silent=True) or {}
-    args = request.args
-
-    raw_title = json_data.get("title") or args.get("title")
-    raw_content = json_data.get("content") or args.get("content")
-    raw_author = json_data.get("author") or args.get("author")
-    raw_date = json_data.get("date") or args.get("date")
-
-    title = raw_title.strip() if isinstance(raw_title, str) else None
-    content = raw_content.strip() if isinstance(raw_content, str) else None
-    author = raw_author.strip() if isinstance(raw_author, str) else None
-    date = raw_date.strip() if isinstance(raw_date, str) else None
-
-    return title, content, author, date
-
-
-def parse_sort_query_input():
-    """
-    Extract and trim 'sort' and 'direction' query parameters.
-
-    :return: Tuple of (sort, direction), each either a trimmed string or None
-    :raises: None
-    """
-    args = request.args
-
-    raw_sort = args.get("sort")
-    raw_direction = args.get("direction")
-
-    sort = raw_sort.strip() if isinstance(raw_sort, str) else None
-    direction = raw_direction.strip() if isinstance(raw_direction, str) else None
-
-    return sort, direction
-
-
-def get_field_error_response(title, content, author, date):
-    """
-    Generate and return an error response for missing or empty fields.
-
-    :param date: The date field to validate
-    :param author: The author field to validate
-    :param title: The title field to validate
-    :param content: The content field to validate
-    :return: Aborts with a 400 response including a descriptive error message
-    :raises: 400: If either or both fields are missing or empty.
-    """
-    missing_fields = []
-    if not title:
-        missing_fields.append("title")
-    if not content:
-        missing_fields.append("content")
-    if not author:
-        missing_fields.append("author")
-    if not date:
-        missing_fields.append("date")
-
-    if missing_fields:
-        abort(400, description=f"Missing required fields: {', '.join(missing_fields)}")
-
-
-def get_post_by_id(post_id):
-    """
-    Find and return the post by ID.
-
-    :param post_id: The ID of the post to find
-    :return: The post object if found.
-    :raises: 404: If no post with the given ID exists.
-    """
-    post = next((post for post in posts if post["id"] == post_id), None)
-    if not post:
-        return abort(404, description=f"Post with id {post_id} not found.")
-    return post
-
-
-def validate_post_id(post_id):
-    """
-    Validate that the post ID is an integer.
-
-    :param post_id: The post ID to validate
-    :return: The integer ID if valid.
-    :raises: 400: If post_id is not an integer.
-    """
-    try:
-        post_id = int(post_id)
-    except ValueError:
-        abort(400, description="Post ID must be an integer")
-    return post_id
+app, limiter, config = create_app()
 
 
 @app.errorhandler(400)
@@ -243,6 +108,8 @@ def handle_posts():
                 "content": content,
                 "author": author,
                 "date": date,
+                "likes": 0,
+                "comments": [],
             }
             posts.append(new_post)
             save_data_to_json(posts)
@@ -300,7 +167,7 @@ def delete_post(post_id: str):
         429: If rate limit exceeded.
     """
     post_id_int = validate_post_id(post_id)
-    post = get_post_by_id(post_id_int)
+    post = get_post_by_id(post_id_int, posts)
     posts.remove(post)
     save_data_to_json(posts)
     return (
@@ -328,7 +195,7 @@ def update_post(post_id: str):
     if not title and not content and not author and not date:
         abort(400, description="At least one field is required")
 
-    post = get_post_by_id(post_id_int)
+    post = get_post_by_id(post_id_int, posts)
 
     if title:
         post["title"] = title
@@ -371,6 +238,61 @@ def search_post():
     save_data_to_json(filtered_posts)
 
     return jsonify(filtered_posts), 200
+
+
+# New route for liking a post
+@app.route("/api/posts/<post_id>/like", methods=["POST"])
+@limiter.limit("10/minute")
+def like_post(post_id: str):
+    """
+    Increment the like count for a blog post by ID.
+
+    :param post_id: The ID of the post to like
+    :return: JSON message with updated post or error if not found
+    :raises:
+        400: If post_id is invalid.
+        404: If no post with the given ID exists.
+        429: If rate limit exceeded.
+    """
+    post_id_int = validate_post_id(post_id)
+    post = get_post_by_id(post_id_int, posts)
+
+    if "likes" not in post:
+        post["likes"] = 0
+    post["likes"] += 1
+
+    save_data_to_json(posts)
+    return jsonify({"message": "Post liked successfully", "post": post}), 200
+
+
+@app.route("/api/posts/<post_id>/comment", methods=["POST"])
+@limiter.limit("10/minute")
+def comment_post(post_id: str):
+    """
+    Add a comment to a blog post by ID.
+
+    :param post_id: The ID of the post to comment on.
+    :type post_id: str
+    :return: JSON message with updated post or error if comment is empty.
+    :rtype: Response
+    :raises 400: If comment is empty or post_id is invalid.
+    :raises 404: If no post with the given ID exists.
+    :raises 429: If rate limit exceeded.
+    """
+    post_id_int = validate_post_id(post_id)
+    post = get_post_by_id(post_id_int, posts)
+    comment_data = request.get_json()
+    comment = comment_data.get("comment", "").strip()
+
+    if not comment:
+        abort(400, description="Comment cannot be empty")
+
+    if "comments" not in post:
+        post["comments"] = []
+    post["comments"].append(comment)
+
+    save_data_to_json(posts)
+    return jsonify({"message": "Comment added successfully", "post": post}), 200
 
 
 if __name__ == "__main__":
