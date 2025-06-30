@@ -32,16 +32,9 @@ Author: Martin Haferanke
 Date: 2025-06-30
 """
 
-import logging
 from datetime import datetime
 
-from flask import Flask, jsonify, request, abort
-from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_swagger_ui import get_swaggerui_blueprint
-
-from config.loader import load_config, apply_runtime_config
+from flask import jsonify, request, abort
 
 from utils.json_io import fetch_data_from_json, save_data_to_json
 from utils.parsers import parse_post_field_input, parse_sort_query_input

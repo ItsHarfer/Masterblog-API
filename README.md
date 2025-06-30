@@ -81,7 +81,7 @@ pip install -r requirements.txt
 ### 3. Start Backend and Frontend
 ```
 python backend/backend_app.py      # API server at http://localhost:5002
-python frontend/frontend_app.py    # Frontend UI at http://localhost:5000
+python frontend/frontend_app.py    # Frontend UI at http://localhost:5007
 ```
 
 ## 🔧 Example API Operations
@@ -116,7 +116,7 @@ The frontend and backend are **served from different ports**, which makes Cross-
 
 This project uses **Flask-CORS** to allow communication between:
 
-- `http://localhost:5000` (Frontend)
+- `http://localhost:5007` (Frontend)
 - `http://localhost:5002` (Backend)
 
 If you deploy the frontend and backend on different hosts or devices, make sure to configure CORS policies accordingly in `app_factory.py`.

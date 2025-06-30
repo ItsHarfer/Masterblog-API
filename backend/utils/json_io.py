@@ -29,7 +29,7 @@ def fetch_data_from_json() -> list:
     :raises IOError: If there is an input/output error accessing the file.
     :raises Exception: For all other unexpected errors.
     """
-    path = Path(__file__).parent / "data" / "posts.json"
+    path = Path(__file__).parent.parent / "data" / "posts.json"
 
     if not path.exists():
         logging.warning(f"Data file does not exist at {path}. Returning empty list.")
