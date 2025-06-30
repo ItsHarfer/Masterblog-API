@@ -1,72 +1,101 @@
 [
-    {
-        "id": 1,
-        "title": "Getting Started with Flask",
-        "content": "This post walks you through building your first REST API using Flask and Python.",
-        "author": "Jane Doe",
-        "date": "2024-09-15"
-    },
-    {
-        "id": 2,
-        "title": "Why Python Is Great for Backend Development",
-        "content": "Python's simplicity and powerful libraries make it ideal for building scalable backend systems.",
-        "author": "Max Mustermann",
-        "date": "2024-09-20"
-    },
-    {
-        "id": 3,
-        "title": "Understanding RESTful APIs",
-        "content": "REST is a design pattern for APIs that relies on standard HTTP methods. Here's how it works.",
-        "author": "Anna Schmidt",
-        "date": "2024-09-25"
-    },
-    {
-        "id": 4,
-        "title": "Implementing Rate Limiting in Flask",
-        "content": "Learn how to use Flask-Limiter to protect your API from abuse by limiting requests.",
-        "author": "Lukas Fischer",
-        "date": "2024-10-01"
-    },
-    {
-        "id": 5,
-        "title": "How to Handle CORS in Flask",
-        "content": "Cross-Origin Resource Sharing (CORS) can be tricky. Here's how to set it up properly in Flask.",
-        "author": "Sophie Keller",
-        "date": "2024-10-05"
-    },
-    {
-        "id": 6,
-        "title": "Deploying Flask Apps to Heroku",
-        "content": "This post guides you through deploying a Flask application to Heroku using Git and the Heroku CLI.",
-        "author": "Jonas Weber",
-        "date": "2024-10-10"
-    },
-    {
-        "id": 7,
-        "title": "Testing Flask APIs with Postman",
-        "content": "Learn how to use Postman to test your Flask-based REST API endpoints effectively.",
-        "author": "Maria Braun",
-        "date": "2024-10-15"
-    },
-    {
-        "id": 8,
-        "title": "JWT Authentication with Flask",
-        "content": "Explore how to implement JSON Web Token authentication in your Flask application using Flask-JWT-Extended.",
-        "author": "Felix Neumann",
-        "date": "2024-10-20"
-    },
-    {
-        "id": 9,
-        "title": "Using SQLAlchemy with Flask",
-        "content": "SQLAlchemy makes database integration easy in Flask. Here's how to define models and interact with your database.",
-        "author": "Laura Meier",
-        "date": "2024-10-25"
-    },
-    {
-        "id": 10,
-        "title": "Flask vs FastAPI: Which One Should You Choose?",
-        "content": "We compare Flask and FastAPI across performance, ease of use, and ecosystem to help you decide.",
-        "author": "David Hoffmann",
-        "date": "2024-10-30"
-    }
+  {
+    "id": 2,
+    "title": "Why Python Is Great 2 for Backend Development just for you",
+    "content": "Python's simplicity and powerful libraries make it ideal for building scalable backend systems. What do you mean? I dont know!",
+    "author": "Martin Haferanke",
+    "date": "2024-09-20",
+    "likes": 0,
+    "comments": ["Totally agree!", "Python rocks 🎉", "This post convinced me to switch."]
+  },
+  {
+    "id": 3,
+    "title": "Understanding RESTful APIs",
+    "content": "REST is a design pattern for APIs that relies on standard HTTP methods. Here's how it works.",
+    "author": "Anna Schmidt",
+    "date": "2024-09-25",
+    "likes": 0,
+    "comments": ["Great explanation.", "Clear and concise!", "Can you do one for GraphQL?"]
+  },
+  {
+    "id": 4,
+    "title": "Implementing Rate Limiting in Flask",
+    "content": "Learn how to use Flask-Limiter to protect your API from abuse by limiting requests.",
+    "author": "Lukas Fischer",
+    "date": "2024-10-01",
+    "likes": 0,
+    "comments": ["This saved my server.", "Good to know, thanks!", "Will this work with FastAPI too?"]
+  },
+  {
+    "id": 5,
+    "title": "How to Handle CORS in Flask",
+    "content": "Cross-Origin Resource Sharing (CORS) can be tricky. Here's how to set it up properly in Flask.",
+    "author": "Sophie Keller",
+    "date": "2024-10-05",
+    "likes": 0,
+    "comments": ["CORS was my nightmare 😅", "This helped a lot.", "Now my frontend is finally talking to the backend."]
+  },
+  {
+    "id": 6,
+    "title": "Deploying Flask Apps to Heroku",
+    "content": "This post guides you through deploying a Flask application to Heroku using Git and the Heroku CLI.",
+    "author": "Jonas Weber",
+    "date": "2024-10-10",
+    "likes": 0,
+    "comments": ["Worked like a charm!", "I had issues with the Procfile tho.", "Nice tutorial!"]
+  },
+  {
+    "id": 7,
+    "title": "Testing Flask APIs with Postman",
+    "content": "Learn how to use Postman to test your Flask-based REST API endpoints effectively.",
+    "author": "Maria Braun",
+    "date": "2024-10-15",
+    "likes": 0,
+    "comments": ["I love Postman.", "This makes testing fun.", "Can you cover automated tests next?"]
+  },
+  {
+    "id": 8,
+    "title": "JWT Authentication with Flask",
+    "content": "Explore how to implement JSON Web Token authentication in your Flask application using Flask-JWT-Extended.",
+    "author": "Felix Neumann",
+    "date": "2024-10-20",
+    "likes": 0,
+    "comments": ["Security FTW 🔐", "Thanks for the JWT intro!", "Clear and useful."]
+  },
+  {
+    "id": 9,
+    "title": "Using SQLAlchemy with Flask",
+    "content": "SQLAlchemy makes database integration easy in Flask. Here's how to define models and interact with your database.",
+    "author": "Laura Meier",
+    "date": "2024-10-25",
+    "likes": 0,
+    "comments": ["I always mix up relationships 😅", "Finally understood joins!", "Thanks a lot 🙌"]
+  },
+  {
+    "id": 10,
+    "title": "Flask vs FastAPI: Which One Should You Choose?",
+    "content": "We compare Flask and FastAPI across performance, ease of use, and ecosystem to help you decide.",
+    "author": "David Hoffmann",
+    "date": "2024-10-30",
+    "likes": 0,
+    "comments": ["FastAPI for speed!", "Flask for simplicity 💡", "Why not both?"]
+  },
+  {
+    "id": 11,
+    "title": "Herbert mag Spiele",
+    "content": "Halllo",
+    "author": "Martin Haferanke",
+    "date": "2025-06-27",
+    "likes": 0,
+    "comments": ["Was für Spiele? 🎮", "Herbert ist ein Ehrenmann.", "Bin dabei!"]
+  },
+  {
+    "id": 12,
+    "title": "asd",
+    "content": "asdasd",
+    "author": "asd",
+    "date": "2025-06-27",
+    "likes": 0,
+    "comments": ["asd approved ✅", "Pure poetry."]
+  }
 ]
