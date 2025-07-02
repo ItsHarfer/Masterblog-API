@@ -10,6 +10,7 @@ Masterblog-API is a Flask-based blog system that exposes a fully RESTful backend
 
 ---
 
+
 ## ✨ Features
 
 - 🧩 RESTful CRUD API for blog posts
@@ -20,6 +21,10 @@ Masterblog-API is a Flask-based blog system that exposes a fully RESTful backend
 - 🖥 Simple HTML interface rendered via Jinja2
 - 📜 Swagger UI documentation  
 
+---
+
+## Preview:
+<img src="assets/preview.png" alt="Preview" width="1000"/>
 ---
 
 ## 🛠️ Tech Stack
