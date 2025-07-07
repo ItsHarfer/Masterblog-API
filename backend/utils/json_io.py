@@ -1,16 +1,3 @@
-"""
-utils / json_io.py
-
-This module manages reading from and writing to the JSON data store (posts.json).
-
-Functions:
-- fetch_data_from_json(): Loads post data from file and ensures presence of 'comments' key.
-- save_data_to_json(data): Writes updated post data back to file with error logging.
-
-Author: Martin Haferanke
-Date: 2025-06-30
-"""
-
 import json
 import logging
 from pathlib import Path
@@ -36,11 +23,10 @@ def fetch_data_from_json() -> list:
         return []
 
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             posts = json.load(f)
             for post in posts:
-                if "comments" not in post:
-                    post["comments"] = []
+                post.setdefault("comments", [])
             return posts
     except (json.JSONDecodeError, ValueError, UnicodeDecodeError) as e:
         logging.error(f"Failed to decode JSON from {path}: {e}")
@@ -53,7 +39,7 @@ def fetch_data_from_json() -> list:
 
 def save_data_to_json(data):
     """
-    Save the list of data to the JSON file.
+    Saves the list of data to the JSON file.
 
     :param data: List of data to save.
 
@@ -62,15 +48,19 @@ def save_data_to_json(data):
     :raises TypeError: If the data cannot be serialized to JSON.
     :raises Exception: For all other unexpected errors.
     """
-    path = Path(__file__).parent / "data" / "posts.json"
+    # Define the path to the JSON file
+    path = Path(__file__).parent.parent / "data" / "posts.json"
 
-    if not path.exists():
-        logging.warning(f"Data file does not exist at {path}. Returning empty list.")
-        return []
+    # Ensure the directory exists, create if necessary
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logging.error(f"Could not create directory for {path.parent}: {e}")
 
     try:
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
+            logging.info(f"Successfully wrote data to {path}")
     except (OSError, IOError) as e:
         logging.error(f"Failed to write JSON to {path}: {e}")
     except TypeError as e:

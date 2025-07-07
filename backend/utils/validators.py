@@ -11,6 +11,8 @@ Author: Martin Haferanke
 Date: 2025-06-30
 """
 
+from datetime import datetime
+
 from flask import abort
 
 
@@ -52,3 +54,24 @@ def get_field_error_response(title, content, author, date):
 
     if missing_fields:
         abort(400, description=f"Missing required fields: {', '.join(missing_fields)}")
+
+
+def validate_date_string(date_str: str, post_id=None) -> datetime:
+    """
+    Parse a date string in YYYY-MM-DD format or abort with 400.
+    :param date_str: the date to validate
+    :param post_id: optional
+    :return: parsed datetime.date
+    """
+    if not date_str:
+        abort(400, description=f"Missing date for post id {post_id}")
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        abort(
+            400,
+            description=(
+                f"Invalid date format for post id {post_id}: '{date_str}', "
+                "expected YYYY-MM-DD"
+            ),
+        )

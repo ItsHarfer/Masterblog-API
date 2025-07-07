@@ -39,6 +39,7 @@ from flask import jsonify, request, abort
 from utils.json_io import fetch_data_from_json, save_data_to_json
 from utils.parsers import parse_post_field_input, parse_sort_query_input
 from utils.validators import get_field_error_response, validate_post_id
+from utils.validators import validate_date_string
 from utils.helpers import get_post_by_id
 
 # App Config
@@ -91,6 +92,9 @@ def handle_posts():
         429: If rate limit exceeded.
     """
 
+    # load existing posts
+    posts = fetch_data_from_json()
+
     if request.method == "POST":
         title, content, author, date = parse_post_field_input()
         if title and content and author and date:
@@ -125,15 +129,23 @@ def handle_posts():
         try:
             reverse = direction == "desc"
 
-            if sort == "date":
-                posts.sort(
-                    key=lambda post: datetime.strptime(
-                        # Default date if a field is missing or None
-                        post.get("date", "1970-01-01"),
-                        "%Y-%m-%d",
-                    ),
-                    reverse=reverse,
+            # Explicitly validate and parse each post's date
+            for post in posts:
+                post["_parsed_date"] = validate_date_string(
+                    post.get("date"), post.get("id")
                 )
+
+            # Sort by the parsed datetime objects
+            posts.sort(
+                key=lambda p: p["_parsed_date"],
+                reverse=reverse,
+            )
+
+            # Clean up temporary parsed date field
+            for post in posts:
+                del post["_parsed_date"]
+
+            # Skip the generic sort for non-date fields
             else:
                 posts.sort(
                     key=lambda post: (str(post.get(sort) or "")).lower(),
@@ -199,6 +211,8 @@ def update_post(post_id: str):
     if date:
         post["date"] = date
 
+    save_data_to_json(posts)
+
     return jsonify({"message": "Post updated successfully", "post": post}), 200
 
 
@@ -227,8 +241,6 @@ def search_post():
 
     if not filtered_posts:
         return jsonify([])
-
-    save_data_to_json(filtered_posts)
 
     return jsonify(filtered_posts), 200
 
